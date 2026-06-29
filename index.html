@@ -2,41 +2,49 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Dashboard Statut - Cursor Clicker</title>
+    <title>Cursor Clicker - Admin & Status</title>
     <style>
-        body { font-family: sans-serif; max-width: 600px; margin: 40px auto; background: #f4f4f9; padding: 20px; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; }
-        .online { color: #27ae60; font-weight: bold; } 
-        .maint { color: #f39c12; font-weight: bold; } 
-        .offline { color: #c0392b; font-weight: bold; }
+        :root { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --accent: #38bdf8; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); padding: 20px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 600px; }
+        .card { background: var(--card); padding: 25px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); margin-bottom: 20px; }
+        .row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #334155; }
         
-        /* Bouton Admin en haut à droite */
-        #admin-btn { position: fixed; top: 20px; right: 20px; background: #e74c3c; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; }
+        .status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; box-shadow: 0 0 8px currentColor; }
+        .online { color: #22c55e; } .maint { color: #eab308; } .offline { color: #ef4444; }
         
-        /* Panneau Admin en popup */
-        #admin-panel { position: fixed; top: 60px; right: 20px; background: #fff3cd; padding: 20px; border-radius: 12px; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.2); width: 250px; z-index: 1000; }
+        #admin-panel { display: none; background: #000; border: 1px solid var(--accent); }
+        input, select, textarea { width: 100%; margin: 8px 0; padding: 10px; border-radius: 8px; border: 1px solid #475569; background: #334155; color: white; }
+        button { cursor: pointer; background: var(--accent); border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<button id="admin-btn" onclick="toggleAdmin()">Admin</button>
+<div class="container">
+    <div class="card">
+        <h1 style="text-align:center">Statut des systèmes</h1>
+        <div id="systems">Chargement...</div>
+        <p style="text-align:right; font-size: 0.8em;">Ping Firebase : <span id="ping-display">--ms</span></p>
+    </div>
 
-<div class="card">
-    <h1>Statut des systèmes</h1>
-    <div id="systems"></div>
+    <div class="card">
+        <h2>Historique des mises à jour</h2>
+        <div id="history-list" style="font-size: 0.9em;">Aucun incident.</div>
+    </div>
 </div>
 
-<div id="admin-panel">
+<button onclick="document.getElementById('admin-panel').style.display='block'" style="position:fixed; bottom:20px; right:20px">Admin</button>
+
+<div id="admin-panel" class="card">
     <h3>Panneau Admin</h3>
     <input type="password" id="pass" placeholder="Mot de passe">
     <button onclick="login()">Se connecter</button>
-    <div id="admin-controls" style="margin-top:15px"></div>
+    <div id="admin-controls"></div>
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
-    import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
+    import { getDatabase, ref, onValue, set, push } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyCBruq8n-X4VmyNkb8Xs8Pv8-V4YctW7r4",
@@ -52,38 +60,52 @@
     const db = getDatabase(app);
     const systems = ['Serveurs', 'Boutique', 'Rebirth', 'Sauvegarde', 'Parrainage', 'Matchmaking', 'Event'];
 
-    systems.forEach(s => {
-        document.getElementById('systems').innerHTML += `<div class="row"><span>${s}</span><span id="${s}" class="offline">Chargement...</span></div>`;
-        onValue(ref(db, 'status/' + s), (snap) => {
-            const val = snap.val();
-            const el = document.getElementById(s);
-            if (el) {
-                el.innerText = val || "Hors service";
-                el.className = val === 'Opérationnel' ? 'online' : (val === 'Maintenance' ? 'maint' : 'offline');
-            }
-        });
+    // Calcul du Ping Réel
+    setInterval(async () => {
+        const start = Date.now();
+        await fetch('https://cursor-clicker-d25da-default-rtdb.europe-west1.firebasedatabase.app/.json');
+        document.getElementById('ping-display').innerText = (Date.now() - start) + "ms";
+    }, 1500);
+
+    // Chargement Status
+    onValue(ref(db, 'status/'), (snap) => {
+        const data = snap.val() || {};
+        document.getElementById('systems').innerHTML = systems.map(s => 
+            `<div class="row">
+                <span><span class="status-dot ${data[s] === 'Opérationnel' ? 'online' : (data[s] === 'Maintenance' ? 'maint' : 'offline')}" style="background-color:currentColor"></span>${s}</span>
+                <span>${data[s] || "Hors service"}</span>
+            </div>`
+        ).join('');
     });
 
-    window.toggleAdmin = () => {
-        const p = document.getElementById('admin-panel');
-        p.style.display = p.style.display === 'block' ? 'none' : 'block';
-    };
+    // Chargement Historique
+    onValue(ref(db, 'history/'), (snap) => {
+        const hist = snap.val();
+        document.getElementById('history-list').innerHTML = hist ? Object.values(hist).reverse().map(h => 
+            `<div style="margin-bottom:10px; border-left: 2px solid var(--accent); padding-left:10px">
+                <b>${h.title}</b><br>${h.msg}
+            </div>`
+        ).join('') : "Aucun incident.";
+    });
 
     window.login = () => {
         if(document.getElementById('pass').value === "Sacha0409@@") {
-            document.getElementById('admin-controls').innerHTML = systems.map(s => 
-                `<div style="margin-bottom:8px">${s}: <select onchange="update('${s}', this.value)">
-                    <option value="Opérationnel">Opérationnel</option>
-                    <option value="Maintenance">Maintenance</option>
-                    <option value="Hors service">Hors service</option>
-                </select></div>`
-            ).join('');
-        } else {
-            alert("Mot de passe incorrect !");
-        }
+            document.getElementById('admin-controls').innerHTML = `
+                <h4>Modifier Statuts</h4>
+                ${systems.map(s => `${s}: <select onchange="update('${s}', this.value)"><option>Opérationnel</option><option>Maintenance</option><option>Hors service</option></select>`).join('')}
+                <h4>Ajouter Historique</h4>
+                <input type="text" id="hTitle" placeholder="Titre">
+                <textarea id="hMsg" placeholder="Message"></textarea>
+                <button onclick="postHistory()">Valider</button>`;
+        } else { alert("MDP incorrect !"); }
     };
 
     window.update = (s, val) => set(ref(db, 'status/' + s), val);
+    window.postHistory = () => {
+        const title = document.getElementById('hTitle').value;
+        const msg = document.getElementById('hMsg').value;
+        if(title && msg) push(ref(db, 'history/'), { title, msg });
+    };
 </script>
 </body>
 </html>
