@@ -10,21 +10,28 @@
         .online { color: #27ae60; font-weight: bold; } 
         .maint { color: #f39c12; font-weight: bold; } 
         .offline { color: #c0392b; font-weight: bold; }
-        #admin-panel { background: #fff3cd; display: none; margin-top: 20px; }
+        
+        /* Bouton Admin en haut à droite */
+        #admin-btn { position: fixed; top: 20px; right: 20px; background: #e74c3c; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; }
+        
+        /* Panneau Admin en popup */
+        #admin-panel { position: fixed; top: 60px; right: 20px; background: #fff3cd; padding: 20px; border-radius: 12px; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.2); width: 250px; z-index: 1000; }
     </style>
 </head>
 <body>
+
+<button id="admin-btn" onclick="toggleAdmin()">Admin</button>
 
 <div class="card">
     <h1>Statut des systèmes</h1>
     <div id="systems"></div>
 </div>
 
-<div id="admin-panel" class="card">
+<div id="admin-panel">
     <h3>Panneau Admin</h3>
     <input type="password" id="pass" placeholder="Mot de passe">
     <button onclick="login()">Se connecter</button>
-    <div id="admin-controls"></div>
+    <div id="admin-controls" style="margin-top:15px"></div>
 </div>
 
 <script type="module">
@@ -50,23 +57,29 @@
         onValue(ref(db, 'status/' + s), (snap) => {
             const val = snap.val();
             const el = document.getElementById(s);
-            if (val) {
-                el.innerText = val;
+            if (el) {
+                el.innerText = val || "Hors service";
                 el.className = val === 'Opérationnel' ? 'online' : (val === 'Maintenance' ? 'maint' : 'offline');
             }
         });
     });
 
+    window.toggleAdmin = () => {
+        const p = document.getElementById('admin-panel');
+        p.style.display = p.style.display === 'block' ? 'none' : 'block';
+    };
+
     window.login = () => {
         if(document.getElementById('pass').value === "Sacha0409@@") {
-            document.getElementById('admin-panel').style.display = 'block';
             document.getElementById('admin-controls').innerHTML = systems.map(s => 
-                `${s}: <select onchange="update('${s}', this.value)">
+                `<div style="margin-bottom:8px">${s}: <select onchange="update('${s}', this.value)">
                     <option value="Opérationnel">Opérationnel</option>
                     <option value="Maintenance">Maintenance</option>
                     <option value="Hors service">Hors service</option>
-                </select><br>`
+                </select></div>`
             ).join('');
+        } else {
+            alert("Mot de passe incorrect !");
         }
     };
 
