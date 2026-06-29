@@ -10,7 +10,7 @@
         .online { color: #27ae60; font-weight: bold; } 
         .maint { color: #f39c12; font-weight: bold; } 
         .offline { color: #c0392b; font-weight: bold; }
-        #admin-panel { background: #fff3cd; display: none; }
+        #admin-panel { background: #fff3cd; display: none; margin-top: 20px; }
     </style>
 </head>
 <body>
@@ -43,16 +43,17 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
-    const systems = ['Serveurs', 'Boutique', 'Rebirth', 'Sauvegarde', 'Parrainage', 'Matchmaking', 'EventAdmin'];
+    const systems = ['Serveurs', 'Boutique', 'Rebirth', 'Sauvegarde', 'Parrainage', 'Matchmaking', 'Event'];
 
-    // Initialisation affichage
     systems.forEach(s => {
-        document.getElementById('systems').innerHTML += `<div class="row"><span>${s}</span><span id="${s}" class="online">Chargement...</span></div>`;
+        document.getElementById('systems').innerHTML += `<div class="row"><span>${s}</span><span id="${s}" class="offline">Chargement...</span></div>`;
         onValue(ref(db, 'status/' + s), (snap) => {
-            const val = snap.val() || "Opérationnel";
+            const val = snap.val();
             const el = document.getElementById(s);
-            el.innerText = val;
-            el.className = val === 'Opérationnel' ? 'online' : (val === 'Maintenance' ? 'maint' : 'offline');
+            if (val) {
+                el.innerText = val;
+                el.className = val === 'Opérationnel' ? 'online' : (val === 'Maintenance' ? 'maint' : 'offline');
+            }
         });
     });
 
@@ -61,7 +62,9 @@
             document.getElementById('admin-panel').style.display = 'block';
             document.getElementById('admin-controls').innerHTML = systems.map(s => 
                 `${s}: <select onchange="update('${s}', this.value)">
-                    <option>Opérationnel</option><option>Maintenance</option><option>Hors service</option>
+                    <option value="Opérationnel">Opérationnel</option>
+                    <option value="Maintenance">Maintenance</option>
+                    <option value="Hors service">Hors service</option>
                 </select><br>`
             ).join('');
         }
