@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard Statut - Cursor Clicker</title>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 40px auto; background: #f4f4f9; padding: 20px; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; }
+        .online { color: #27ae60; font-weight: bold; } 
+        .maint { color: #f39c12; font-weight: bold; } 
+        .offline { color: #c0392b; font-weight: bold; }
+        #admin-panel { background: #fff3cd; display: none; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h1>Statut des systèmes</h1>
+    <div id="systems"></div>
+</div>
+
+<div id="admin-panel" class="card">
+    <h3>Panneau Admin</h3>
+    <input type="password" id="pass" placeholder="Mot de passe">
+    <button onclick="login()">Se connecter</button>
+    <div id="admin-controls"></div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+    import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyCBruq8n-X4VmyNkb8Xs8Pv8-V4YctW7r4",
+        authDomain: "cursor-clicker-d25da.firebaseapp.com",
+        projectId: "cursor-clicker-d25da",
+        storageBucket: "cursor-clicker-d25da.firebasestorage.app",
+        messagingSenderId: "583222885338",
+        appId: "1:583222885338:web:0f216512afd80b502f1ee3",
+        databaseURL: "https://cursor-clicker-d25da-default-rtdb.firebaseio.com"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const systems = ['Serveurs', 'Boutique', 'Rebirth', 'Sauvegarde', 'Parrainage', 'Matchmaking', 'Event Admin'];
+
+    // Initialisation affichage
+    systems.forEach(s => {
+        document.getElementById('systems').innerHTML += `<div class="row"><span>${s}</span><span id="${s}" class="online">Chargement...</span></div>`;
+        onValue(ref(db, 'status/' + s), (snap) => {
+            const val = snap.val() || "Opérationnel";
+            const el = document.getElementById(s);
+            el.innerText = val;
+            el.className = val === 'Opérationnel' ? 'online' : (val === 'Maintenance' ? 'maint' : 'offline');
+        });
+    });
+
+    window.login = () => {
+        if(document.getElementById('pass').value === "TON_MDP") {
+            document.getElementById('admin-panel').style.display = 'block';
+            document.getElementById('admin-controls').innerHTML = systems.map(s => 
+                `${s}: <select onchange="update('${s}', this.value)">
+                    <option>Opérationnel</option><option>Maintenance</option><option>Hors service</option>
+                </select><br>`
+            ).join('');
+        }
+    };
+
+    window.update = (s, val) => set(ref(db, 'status/' + s), val);
+</script>
+</body>
+</html>
